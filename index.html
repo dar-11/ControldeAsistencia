@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Asistencia Escolar</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:'Poppins',sans-serif;margin:0;padding:0;background:#f7f8fc;color:#1c2233}
+header{background:#002147;color:#fff;padding:20px;text-align:center;font-size:1.8em;font-weight:600;letter-spacing:1px}
+nav{display:flex;justify-content:center;gap:20px;background:#fff;padding:10px 0;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
+nav a{text-decoration:none;color:#002147;font-weight:600;padding:8px 16px;border-radius:8px;transition:.3s}
+nav a:hover{background:#002147;color:#fff}
+.container{max-width:1200px;margin:40px auto;padding:20px;background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+h2{color:#002147;margin-bottom:10px}
+button{background:#e0a800;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;transition:.3s}
+button:hover{background:#cc9000}
+.btn-danger{background:#c82333}
+.btn-danger:hover{background:#a71d2a}
+.btn-primary{background:#004080;color:#fff}
+.btn-primary:hover{background:#002b5c}
+.tab-button{padding:10px 20px;margin:5px;border:none;background:#cfd8e3;color:#002147;border-radius:6px;cursor:pointer;font-weight:600}
+.tab-button.active{background:#002147;color:#fff}
+.tab-content{display:none;margin-top:20px}
+.tab-content.active{display:block}
+.form-group{margin-bottom:15px}
+label{display:block;font-weight:600;margin-bottom:5px;color:#002147}
+input,select{width:100%;padding:8px;border:1px solid #ccc;border-radius:5px}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th,td{padding:10px;border:1px solid #ddd;text-align:left}
+th{background:#002147;color:#fff}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:15px}
+.alert{padding:10px;border-radius:6px;margin-bottom:15px;font-weight:500;display:none}
+.alert-success{background:#d4edda;color:#155724}
+.alert-error{background:#f8d7da;color:#721c24}
+#inicio{text-align:center;padding:60px 20px}
+#inicio h1{font-size:2.2em;color:#002147;margin-bottom:10px}
+#inicio p{font-size:1.1em;margin-bottom:30px;color:#333}
+</style>
+</head>
+<body>
+<header>Sistema de Asistencia Escolar</header>
+
+<nav id="menuNav">
+  <a href="#" onclick="mostrarTab('inicio')">Inicio</a>
+  <a href="#" onclick="mostrarTab('alumnos')">Gestión de Alumnos</a>
+  <a href="#" onclick="mostrarTab('asistencia')">Control de Asistencia</a>
+</nav>
+
+<div id="inicio" class="tab-content active">
+  <h1>Bienvenido</h1>
+  <p>Control de Asistencia de nuestra institución</p>
+  <button class="btn-primary" onclick="mostrarTab('alumnos')">Entrar al Sistema</button>
+</div>
+
+<div class="container">
+  <div id="alumnos" class="tab-content">
+    <h2>Agregar/Editar Alumno</h2>
+    <div id="alumno-alert" class="alert"></div>
+    <form id="alumno-form">
+      <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:15px;">
+        <div class="form-group"><label>ID</label><input type="text" id="alumno-id" readonly></div>
+        <div class="form-group"><label>Nombre</label><input type="text" id="alumno-nombre" required></div>
+        <div class="form-group">
+          <label>Grado</label>
+          <select id="alumno-grado" required>
+            <option value="">Seleccione grado</option>
+            <option>7°A</option><option>7°B</option><option>7°C</option>
+            <option>8°A</option><option>8°B</option><option>8°C</option>
+            <option>9°A</option><option>9°B</option><option>9°C</option>
+            <option>10°INFO</option><option>10°AEB</option><option>10°BCH</option>
+            <option>11°AEB</option><option>11°INFO</option><option>11°BCH</option>
+            <option>12°AEB</option><option>12°INFO</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" id="btn-guardar-alumno">Guardar Alumno</button>
+      <button type="button" id="btn-cancelar-alumno">Cancelar</button>
+    </form>
+    <h2>Lista de Alumnos</h2>
+    <div class="filters">
+      <input type="text" id="filtro-id-alumno" placeholder="Filtrar por ID">
+      <input type="text" id="filtro-nombre-alumno" placeholder="Filtrar por Nombre">
+      <input type="text" id="filtro-grado-alumno" placeholder="Filtrar por Grado">
+      <input type="text" id="buscar-alumno" placeholder="Buscar (ID o Nombre)">
+    </div>
+    <table>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Grado</th><th>Acciones</th></tr></thead>
+      <tbody id="alumnos-body"></tbody>
+    </table>
+  </div>
+
+  <div id="asistencia" class="tab-content">
+    <h2>Registrar Asistencia</h2>
+    <div id="asistencia-alert" class="alert"></div>
+    <form id="asistencia-form">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
+        <div class="form-group"><label>Alumno</label><select id="asistencia-alumno" required><option value="">Seleccione un alumno</option></select></div>
+        <div class="form-group"><label>ID Alumno</label><input type="text" id="asistencia-id" readonly></div>
+        <div class="form-group"><label>Nombre Alumno</label><input type="text" id="asistencia-nombre" readonly></div>
+        <div class="form-group"><label>Grado</label><input type="text" id="asistencia-grado" readonly></div>
+        <div class="form-group"><label>Estado</label><select id="asistencia-estado" required><option value="presente">Presente</option><option value="ausente">Ausente</option></select></div>
+      </div>
+      <button type="submit">Registrar Asistencia</button>
+    </form>
+    <h2>Historial de Asistencia</h2>
+    <div class="filters">
+      <input type="text" id="filtro-id-asistencia" placeholder="Filtrar por ID Alumno">
+      <input type="text" id="filtro-nombre-asistencia" placeholder="Filtrar por Nombre">
+      <select id="filtro-estado-asistencia"><option value="">Todos los estados</option><option value="presente">Presente</option><option value="ausente">Ausente</option></select>
+      <input type="text" id="buscar-asistencia" placeholder="Buscar (ID o Nombre)">
+    </div>
+    <table>
+      <thead><tr><th>ID Asistencia</th><th>ID Alumno</th><th>Alumno</th><th>Grado</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="asistencia-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const supabaseUrl='https://imbhkvophwoklzbtfnox.supabase.co'
+const supabaseKey='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltYmhrdm9waHdva2x6YnRmbm94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNzM1MjAsImV4cCI6MjA3NTk0OTUyMH0._oDOeNREgvksuLvyowuF3OhNCyTvmBlebq1R645NIZM'
+let supabase,alumnos=[],asistencias=[],editandoAlumnoId=null
+function obtenerFechaActual(){return new Date().toISOString().split('T')[0]}
+document.addEventListener('DOMContentLoaded',()=>inicializarApp())
+
+async function inicializarApp(){
+  supabase=window.supabase.createClient(supabaseUrl,supabaseKey)
+  await cargarAlumnos()
+  await cargarAsistencias()
+  configurarEventos()
+}
+
+function configurarEventos(){
+  document.getElementById('alumno-form').addEventListener('submit',guardarAlumno)
+  document.getElementById('btn-cancelar-alumno').addEventListener('click',()=>{document.getElementById('alumno-form').reset();document.getElementById('alumno-id').value='';editandoAlumnoId=null;document.getElementById('btn-guardar-alumno').textContent='Guardar Alumno'})
+  document.getElementById('asistencia-form').addEventListener('submit',guardarAsistencia)
+  document.getElementById('asistencia-alumno').addEventListener('change',function(){const a=alumnos.find(x=>x.ID_Alumno==this.value);if(a){document.getElementById('asistencia-id').value=a.ID_Alumno;document.getElementById('asistencia-nombre').value=a.Nombre;document.getElementById('asistencia-grado').value=a.Grado}else{document.getElementById('asistencia-id').value='';document.getElementById('asistencia-nombre').value='';document.getElementById('asistencia-grado').value=''}})
+  ;['filtro-id-alumno','filtro-nombre-alumno','filtro-grado-alumno','buscar-alumno'].forEach(id=>document.getElementById(id).addEventListener('input',filtrarAlumnos))
+  ;['filtro-id-asistencia','filtro-nombre-asistencia','buscar-asistencia'].forEach(id=>document.getElementById(id).addEventListener('input',filtrarAsistencias))
+  document.getElementById('filtro-estado-asistencia').addEventListener('change',filtrarAsistencias)
+}
+
+function mostrarTab(tab){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'))
+  document.getElementById(tab).classList.add('active')
+  const nav=document.getElementById('menuNav')
+  if(tab==='inicio')nav.style.display='none';else nav.style.display='flex'
+}
+
+async function cargarAlumnos(){
+  const{data,error}=await supabase.from('Alumno').select('*').order('ID_Alumno')
+  if(error)return mostrarAlerta('alumno-alert','Error: '+error.message,'error')
+  alumnos=data||[]
+  mostrarAlumnos()
+  actualizarSelectAlumnos()
+}
+
+function mostrarAlumnos(lista=alumnos){
+  const tb=document.getElementById('alumnos-body')
+  tb.innerHTML=''
+  if(lista.length==0){tb.innerHTML='<tr><td colspan="4">No hay alumnos</td></tr>';return}
+  lista.forEach(a=>{
+    const tr=document.createElement('tr')
+    tr.innerHTML=`<td>${a.ID_Alumno}</td><td>${a.Nombre}</td><td>${a.Grado}</td>
+    <td><button class="btn-primary" onclick="editarAlumno(${a.ID_Alumno})">Editar</button>
+    <button class="btn-danger" onclick="eliminarAlumno(${a.ID_Alumno})">Eliminar</button></td>`
+    tb.appendChild(tr)
+  })
+}
+
+async function guardarAlumno(e){
+  e.preventDefault()
+  const id=document.getElementById('alumno-id').value,n=document.getElementById('alumno-nombre').value,g=document.getElementById('alumno-grado').value
+  if(editandoAlumnoId){
+    const{error}=await supabase.from('Alumno').update({Nombre:n,Grado:g}).eq('ID_Alumno',editandoAlumnoId)
+    if(error)return mostrarAlerta('alumno-alert','Error: '+error.message,'error')
+    mostrarAlerta('alumno-alert','Alumno actualizado','success')
+  }else{
+    const{error}=await supabase.from('Alumno').insert([{Nombre:n,Grado:g}])
+    if(error)return mostrarAlerta('alumno-alert','Error: '+error.message,'error')
+    mostrarAlerta('alumno-alert','Alumno creado','success')
+  }
+  document.getElementById('alumno-form').reset()
+  document.getElementById('alumno-id').value=''
+  editandoAlumnoId=null
+  document.getElementById('btn-guardar-alumno').textContent='Guardar Alumno'
+  await cargarAlumnos()
+}
+
+function editarAlumno(id){
+  const a=alumnos.find(x=>x.ID_Alumno==id)
+  if(a){
+    document.getElementById('alumno-id').value=a.ID_Alumno
+    document.getElementById('alumno-nombre').value=a.Nombre
+    document.getElementById('alumno-grado').value=a.Grado
+    editandoAlumnoId=id
+    document.getElementById('btn-guardar-alumno').textContent='Actualizar Alumno'
+  }
+}
+
+async function eliminarAlumno(id){
+  if(!confirm('¿Eliminar este alumno?'))return
+  const{error}=await supabase.from('Alumno').delete().eq('ID_Alumno',id)
+  if(error)return mostrarAlerta('alumno-alert','Error: '+error.message,'error')
+  mostrarAlerta('alumno-alert','Alumno eliminado','success')
+  await cargarAlumnos()
+}
+
+function filtrarAlumnos(){
+  const id=document.getElementById('filtro-id-alumno').value.toLowerCase(),n=document.getElementById('filtro-nombre-alumno').value.toLowerCase(),g=document.getElementById('filtro-grado-alumno').value.toLowerCase(),b=document.getElementById('buscar-alumno').value.toLowerCase()
+  let f=alumnos
+  if(id)f=f.filter(a=>a.ID_Alumno.toString().includes(id))
+  if(n)f=f.filter(a=>a.Nombre.toLowerCase().includes(n))
+  if(g)f=f.filter(a=>a.Grado.toLowerCase().includes(g))
+  if(b)f=f.filter(a=>a.ID_Alumno.toString().includes(b)||a.Nombre.toLowerCase().includes(b))
+  mostrarAlumnos(f)
+}
+
+async function cargarAsistencias(){
+  const{data,error}=await supabase.from('Asistencia').select('*').order('Fecha',{ascending:false})
+  if(error)return mostrarAlerta('asistencia-alert','Error: '+error.message,'error')
+  asistencias=data||[]
+  mostrarAsistencias()
+}
+
+function mostrarAsistencias(lista=asistencias){
+  const tb=document.getElementById('asistencia-body')
+  tb.innerHTML=''
+  if(lista.length==0){tb.innerHTML='<tr><td colspan="7">No hay asistencias</td></tr>';return}
+  lista.forEach(a=>{
+    const tr=document.createElement('tr')
+    tr.innerHTML=`<td>${a.ID_ASISTENCIA}</td><td>${a.ID_Alumno}</td><td>${a.Nombre||'N/A'}</td><td>${a.Grado||'N/A'}</td><td>${new Date(a.Fecha).toLocaleDateString('es-ES')}</td><td>${a.Estado}</td><td><button class="btn-danger" onclick="eliminarAsistencia(${a.ID_ASISTENCIA})">Eliminar</button></td>`
+    tb.appendChild(tr)
+  })
+}
+
+function actualizarSelectAlumnos(){
+  const s=document.getElementById('asistencia-alumno')
+  s.innerHTML='<option value="">Seleccione un alumno</option>'
+  alumnos.forEach(a=>{const o=document.createElement('option');o.value=a.ID_Alumno;o.textContent=a.Nombre+' ('+a.Grado+')';s.appendChild(o)})
+}
+
+async function guardarAsistencia(e){
+  e.preventDefault()
+  const id=document.getElementById('asistencia-alumno').value,n=document.getElementById('asistencia-nombre').value,g=document.getElementById('asistencia-grado').value,est=document.getElementById('asistencia-estado').value
+  if(!id)return mostrarAlerta('asistencia-alert','Seleccione un alumno','error')
+  const{error}=await supabase.from('Asistencia').insert([{ID_Alumno:parseInt(id),Nombre:n,Grado:g,Fecha:obtenerFechaActual(),Estado:est}])
+  if(error)return mostrarAlerta('asistencia-alert','Error: '+error.message,'error')
+  mostrarAlerta('asistencia-alert','Asistencia registrada','success')
+  document.getElementById('asistencia-form').reset()
+  await cargarAsistencias()
+}
+
+async function eliminarAsistencia(id){
+  if(!confirm('¿Eliminar esta asistencia?'))return
+  const{error}=await supabase.from('Asistencia').delete().eq('ID_ASISTENCIA',id)
+  if(error)return mostrarAlerta('asistencia-alert','Error: '+error.message,'error')
+  mostrarAlerta('asistencia-alert','Asistencia eliminada','success')
+  await cargarAsistencias()
+}
+
+function filtrarAsistencias(){
+  const id=document.getElementById('filtro-id-asistencia').value.toLowerCase(),n=document.getElementById('filtro-nombre-asistencia').value.toLowerCase(),est=document.getElementById('filtro-estado-asistencia').value,b=document.getElementById('buscar-asistencia').value.toLowerCase()
+  let f=asistencias
+  if(id)f=f.filter(a=>a.ID_Alumno.toString().includes(id))
+  if(n)f=f.filter(a=>(a.Nombre||'').toLowerCase().includes(n))
+  if(est)f=f.filter(a=>a.Estado===est)
+  if(b)f=f.filter(a=>a.ID_Alumno.toString().includes(b)||(a.Nombre||'').toLowerCase().includes(b))
+  mostrarAsistencias(f)
+}
+
+function mostrarAlerta(id,msg,t){
+  const a=document.getElementById(id)
+  a.textContent=msg
+  a.className='alert alert-'+t
+  a.style.display='block'
+  setTimeout(()=>a.style.display='none',4000)
+}
+
+mostrarTab('inicio')
+</script>
+</body>
+</html>
